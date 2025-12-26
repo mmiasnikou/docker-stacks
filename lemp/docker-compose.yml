@@ -1,0 +1,100 @@
+version: '3.8'
+
+# LEMP Stack: Linux, Nginx, MySQL, PHP
+# Author: Mikhail Miasnikou
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./www:/var/www/html
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - php
+    networks:
+      - lemp
+
+  php:
+    build:
+      context: ./php
+      dockerfile: Dockerfile
+    container_name: php
+    restart: unless-stopped
+    volumes:
+      - ./www:/var/www/html
+      - ./php/php.ini:/usr/local/etc/php/php.ini:ro
+    environment:
+      - DB_HOST=mysql
+      - DB_NAME=${DB_NAME:-app}
+      - DB_USER=${DB_USER:-app}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+      - REDIS_HOST=redis
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - lemp
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./mysql/conf.d:/etc/mysql/conf.d:ro
+      - ./logs/mysql:/var/log/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootsecret}
+      - MYSQL_DATABASE=${DB_NAME:-app}
+      - MYSQL_USER=${DB_USER:-app}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-secret}
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - lemp
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - lemp
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_USER=root
+      - PMA_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootsecret}
+    depends_on:
+      - mysql
+    networks:
+      - lemp
+    profiles:
+      - tools
+
+networks:
+  lemp:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:

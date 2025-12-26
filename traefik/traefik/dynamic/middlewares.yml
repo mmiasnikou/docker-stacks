@@ -1,0 +1,66 @@
+# Dynamic Configuration - Middlewares
+# Author: Mikhail Miasnikou
+
+http:
+  middlewares:
+    # Security headers
+    security-headers:
+      headers:
+        browserXssFilter: true
+        contentTypeNosniff: true
+        frameDeny: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: "SAMEORIGIN"
+        customResponseHeaders:
+          X-Robots-Tag: "noindex,nofollow,nosnippet,noarchive,notranslate,noimageindex"
+          server: ""
+
+    # Rate limiting
+    rate-limit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1s
+
+    # IP whitelist
+    ip-whitelist:
+      ipWhiteList:
+        sourceRange:
+          - "127.0.0.1/32"
+          - "10.0.0.0/8"
+          - "172.16.0.0/12"
+          - "192.168.0.0/16"
+
+    # Compress responses
+    compress:
+      compress: {}
+
+    # Redirect www to non-www
+    www-redirect:
+      redirectRegex:
+        regex: "^https://www\\.(.*)"
+        replacement: "https://${1}"
+        permanent: true
+
+    # Basic auth (generate with: htpasswd -nb user password)
+    auth:
+      basicAuth:
+        users:
+          - "admin:$apr1$ruca84Hq$mbjdMZBAG.KWn7vfN/SNK/"
+
+    # Chain for web apps
+    web-chain:
+      chain:
+        middlewares:
+          - security-headers
+          - rate-limit
+          - compress
+
+    # Chain for APIs
+    api-chain:
+      chain:
+        middlewares:
+          - rate-limit
+          - compress
